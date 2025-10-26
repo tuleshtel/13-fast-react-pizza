@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { Form, redirect, useActionData, useNavigation } from "react-router-dom";
+import { createOrder } from "../../services/apiRestaurant";
 
 // https://uibakery.io/regex-library/phone-number
 const isValidPhone = (str) =>
   /^\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}$/.test(
-    str
+    str,
   );
 
 const fakeCart = [
@@ -33,12 +35,16 @@ const fakeCart = [
 function CreateOrder() {
   // const [withPriority, setWithPriority] = useState(false);
   const cart = fakeCart;
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
+
+  const formErrors = useActionData();
 
   return (
     <div>
       <h2>Ready to order? Let's go!</h2>
 
-      <form>
+      <Form method="post">
         <div>
           <label>First Name</label>
           <input type="text" name="customer" required />
@@ -49,6 +55,7 @@ function CreateOrder() {
           <div>
             <input type="tel" name="phone" required />
           </div>
+          {formErrors?.phone && <p>{formErrors.phone}</p>}
         </div>
 
         <div>
@@ -70,11 +77,44 @@ function CreateOrder() {
         </div>
 
         <div>
-          <button>Order now</button>
+          <input type="hidden" name="cart" value={JSON.stringify(cart)} />
+          <button
+            disabled={isSubmitting}
+            className="inline-block rounded-full bg-yellow-400 px-4 py-3 font-semibold tracking-wide text-stone-800 uppercase transition-colors duration-300 hover:bg-yellow-300 focus:ring focus:ring-yellow-300 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? "Placing order" : "Order now"}
+          </button>
         </div>
-      </form>
+      </Form>
     </div>
   );
+}
+
+export async function action({ request }) {
+  const formData = await request.formData();
+  const data = Object.fromEntries(formData);
+  console.log(data);
+
+  const order = {
+    ...data,
+    priority: data.priority === "on",
+    cart: JSON.parse(data.cart),
+  };
+
+  // const errors = {};
+
+  // if (isValidPhone(order.phone)) {
+  //   errors.phone =
+  //     "Please give us your correct phone number. We might need it to contact you.";
+  // }
+  // if (Object.keys(errors).length) {
+  //   return errors;
+  // }
+
+  const newOrder = await createOrder(order);
+
+  console.log(newOrder);
+  return redirect(`/order/${newOrder.id}`);
 }
 
 export default CreateOrder;
